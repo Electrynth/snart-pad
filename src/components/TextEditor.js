@@ -8,7 +8,6 @@ import {
   TextField,
   IconButton,
   Collapse,
-  Divider,
   Card,
   CardHeader,
   CardContent,
@@ -25,6 +24,8 @@ import {
 } from '@material-ui/icons';
 import { makeStyles } from '@material-ui/core/styles';
 import 'draft-js/dist/Draft.css';
+import RegexExampleImage from '../assets/regex.png';
+import NotepadExampleImage from '../assets/notepad.png';
 
 const useStyles = makeStyles(theme => ({
   paper: {
@@ -275,10 +276,23 @@ function TextEditor({ width }) {
             This app was created primarily to provide a simple and game-agnostic
             option for building lists for tabletop games.
           </Typography>
-          <ExpansionPanel title="Examples">
-            <Typography>
-              stuff
-            </Typography>
+          <ExpansionPanel title="Example">
+            <Typography>Example with a few regex definitions:</Typography>
+            <div style={{ display: 'flex', flexFlow: 'column nowrap', alignItems: 'center' }}>
+              <img
+                alt="regex example"
+                src={RegexExampleImage}
+                style={{ width: 400 }}
+              />
+            </div>
+          <Typography>and the corresponding notepad:</Typography>
+          <div style={{ display: 'flex', flexFlow: 'column nowrap', alignItems: 'center' }}>
+            <img
+              alt="notepad example"
+              src={NotepadExampleImage}
+              style={{ width: 400 }}
+            />
+        </div>
           </ExpansionPanel>
           <ExpansionPanel title="Additional Resources">
             <Typography>
