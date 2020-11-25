@@ -1,17 +1,72 @@
 import React, { useState } from 'react';
+import clsx from 'clsx';
 import { Editor, EditorState } from 'draft-js';
 import {
+  withWidth,
   Paper,
   Typography,
   TextField,
-  IconButton
+  IconButton,
+  Collapse,
+  Divider,
+  Card,
+  CardHeader,
+  CardContent,
+  Dialog,
+  DialogTitle,
+  DialogContent
 } from '@material-ui/core';
 import {
   Add,
   Clear,
-  ArrowForward
+  ArrowForward,
+  HelpOutline,
+  ExpandMore
 } from '@material-ui/icons';
+import { makeStyles } from '@material-ui/core/styles';
 import 'draft-js/dist/Draft.css';
+
+const useStyles = makeStyles(theme => ({
+  paper: {
+    position: 'absolute',
+    width: 400,
+    backgroundColor: theme.palette.background.paper,
+    border: '2px solid #000',
+    boxShadow: theme.shadows[5],
+    padding: theme.spacing(2, 4, 3),
+  },
+  editorWindow: {
+    padding: 8,
+    marginTop: 8,
+    marginBottom: 8,
+    borderRadius: 5,
+    border: '1px solid rgba(255, 255, 255, 0.25)'
+  },
+  expand: {
+    transform: 'rotate(0deg)',
+    marginLeft: 'auto',
+    transition: theme.transitions.create('transform', {
+      duration: theme.transitions.duration.shortest,
+    }),
+  },
+  expandOpen: {
+    transform: 'rotate(180deg)',
+  },
+  closeModalButton: {
+    position: 'absolute',
+    right: theme.spacing(1),
+    top: theme.spacing(1)
+  },
+  rowLayout: {
+    display: 'flex',
+    flexDirection: 'row',
+    justifyContent: 'space-evenly'
+  },
+  columnLayout: {
+    display: 'flex',
+    flexDirection: 'column'
+  }
+}))
 
 function deleteItem(items, i) {
   return items.slice(0, i).concat(items.slice(i + 1, items.length))
@@ -33,6 +88,45 @@ function countPointsInLine(line, definitionList) {
   if (multiplierMatches && points > 0) {
     return points * Number.parseInt(multiplierMatches[0].charAt(0));
   } else return points;
+}
+
+function CollapseButton({ isExpanded, handleClick }) {
+  const classes = useStyles();
+  return (
+    <IconButton
+      className={clsx(classes.expand, {
+        [classes.expandOpen]: isExpanded,
+      })}
+      aria-expanded={isExpanded}
+      onClick={handleClick}
+      style={{ marginLeft: 8 }}
+    >
+      <ExpandMore />
+    </IconButton>
+  );
+};
+
+function ExpansionPanel({ title, children }) {
+  const [isExpanded, setIsExpanded] = useState(false);
+  const handleExpandClick = () => setIsExpanded(!isExpanded);
+  return (
+    <Card square>
+      <CardHeader
+        title={title}
+        action={
+          <CollapseButton
+            isExpanded={isExpanded}
+            handleClick={handleExpandClick}
+          />
+        }
+      />
+      <Collapse unmountOnExit timeout="auto" in={isExpanded}>
+        <CardContent style={{ display: 'flex', flexFlow: 'column nowrap' }}>
+          {children}
+        </CardContent>
+      </Collapse>
+    </Card>
+  );
 }
 
 function ClosedDefinition({ definition, handleRemove }) {
@@ -83,7 +177,11 @@ function OpenDefinition({ definitionMap, handleAdd }) {
       />
       <IconButton
         disabled={isDisabled}
-        onClick={() => handleAdd(text, value)}
+        onClick={() => {
+          setText('');
+          setValue(0);
+          handleAdd(text, value);
+        }}
         style={{ marginLeft: 8 }}
       >
         <Add />
@@ -92,7 +190,9 @@ function OpenDefinition({ definitionMap, handleAdd }) {
   );
 }
 
-function TextEditor() {
+function TextEditor({ width }) {
+  const classes = useStyles();
+  const [isModalOpen, setIsModalOpen] = useState(false);
   const [definitionList, setDefinitionList] = useState([]);
   const [definitionMap, setDefinitionMap] = useState({});
   const [editorState, setEditorState] = useState(() => EditorState.createEmpty());
@@ -102,11 +202,14 @@ function TextEditor() {
     setDefinitionList([ ...definitionList, [text, value] ]);
   };
   const removeDefinition = (text) => {
-    setDefinitionList(deleteItem(definitionList, definitionMap[text]));
-    const newDefinitionMap = { ...definitionMap };
-    delete newDefinitionMap[text];
+    const newDefinitionList = deleteItem(definitionList, definitionMap[text])
+    const newDefinitionMap = {};
+    newDefinitionList.forEach((def, i) => newDefinitionMap[def[0]] = i);
+    setDefinitionList(newDefinitionList);
     setDefinitionMap(newDefinitionMap);
   };
+  const openModal = () => setIsModalOpen(true);
+  const closeModal = () => setIsModalOpen(false);
 
   const contentState = editorState.getCurrentContent();
   let grandTotal = 0;
@@ -115,43 +218,105 @@ function TextEditor() {
     grandTotal += countPointsInLine(contentBlock.getText(), definitionList);
   });
 
+  const isMobile = width === 'xs' || width === 'sm';
+
   return (
-    <div style={{ padding: 16, display: 'flex', flexFlow: 'column nowrap' }}>
+    <div style={{ padding: 16 }}>
       <Typography variant="h4">Snart Pad: The Smart Number Notepad</Typography>
       <div style={{ marginTop: 16 }} />
-      <Paper elevation={2} style={{ padding: 16 }}>
-        <Typography variant="h5">Regex Definitions</Typography>
-        {definitionList.map(def =>
-          <ClosedDefinition
-            key={definitionMap[def[0]]}
-            definition={def}
-            handleRemove={removeDefinition}
-          />
-        )}
-        <OpenDefinition definitionMap={definitionMap} handleAdd={addDefinition} />
-      </Paper>
-      <Paper elevation={2} style={{ padding: 16, marginTop: 8  }}>
-        <Typography variant="h5">Notepad</Typography>
-        <div
-          style={{
-            padding: 8,
-            marginTop: 8,
-            marginBottom: 8,
-            borderRadius: 5,
-            border: '1px solid rgba(255, 255, 255, 0.1)'
-          }}
-        >
-          <Editor
-            editorState={editorState}
-            onChange={setEditorState}
-          />
-        </div>
-        <Typography>
-          Grand Total: {grandTotal}
-        </Typography>
-      </Paper>
+      <div className={clsx(classes.rowLayout, { [classes.columnLayout]: isMobile })}>
+        <Paper elevation={2} style={{ padding: 16, width: '100%' }}>
+          <Typography variant="h5">Regex Definitions</Typography>
+          {definitionList.map(def =>
+            <ClosedDefinition
+              key={definitionMap[def[0]]}
+              definition={def}
+              handleRemove={removeDefinition}
+            />
+          )}
+          <OpenDefinition definitionMap={definitionMap} handleAdd={addDefinition} />
+        </Paper>
+        <div style={isMobile ? { height: 12 } : { width: 24 }} />
+        <Paper elevation={2} style={{ padding: 16, width: '100%' }}>
+          <Typography variant="h5">Notepad</Typography>
+          <div className={classes.editorWindow}>
+            <Editor editorState={editorState} onChange={setEditorState} />
+          </div>
+          <Typography>
+            Grand Total: {grandTotal}
+          </Typography>
+        </Paper>
+      </div>
+      <div style={{ display: 'flex', justifyContent: 'space-evenly' }}>
+        <IconButton size="small" onClick={openModal} style={{ marginTop: 8 }}>
+          <HelpOutline />
+        </IconButton>
+      </div>
+      <Dialog
+        open={isModalOpen}
+        fullScreen={true}
+        onClose={closeModal}
+      >
+        <DialogTitle>Information and More</DialogTitle>
+        <IconButton className={classes.closeModalButton} onClick={closeModal}>
+          <Clear />
+        </IconButton>
+        <DialogContent>
+          <Typography style={{ marginBottom: 8 }}>
+            Snart pad is a straightforward text editor that sums up numbers it
+            finds. By default it will search for any numbers in parentheses and
+            add them to the total. However, regex definitions with corresponding
+            point costs can be also be added. Snart Pad searches for these
+            regexes and if found the corresponding point value will be added.
+            Additionally, if a number followed by the letter "x" is found, then
+            the points on that line will be multiplied by that number.
+          </Typography>
+          <Typography style={{ marginBottom: 16 }}>
+            This app was created primarily to provide a simple and game-agnostic
+            option for building lists for tabletop games.
+          </Typography>
+          <ExpansionPanel title="Examples">
+            <Typography>
+              stuff
+            </Typography>
+          </ExpansionPanel>
+          <ExpansionPanel title="Additional Resources">
+            <Typography>
+              Regex tester&nbsp; - &nbsp;
+              <a
+                href="https://www.regexpal.com/"
+                target="_blank"
+                rel="noreferrer"
+                style={{ color: 'lightblue', textDecoration: 'none' }}
+              >
+                RegEx Pal
+              </a>
+            </Typography>
+            <Typography>
+              Built with&nbsp; - &nbsp;
+              <a
+                href="https://draftjs.org/"
+                target="_blank"
+                rel="noreferrer"
+                style={{ color: 'lightblue', textDecoration: 'none' }}
+              >
+                Draft.js
+              </a>
+            </Typography>
+            <Typography>
+              Questions and comments&nbsp; - &nbsp;
+              <a
+                href="mailto:nbrown4296@gmail.com"
+                style={{ color: 'lightblue', textDecoration: 'none' }}
+              >
+                Email me
+              </a>
+            </Typography>
+          </ExpansionPanel>
+        </DialogContent>
+      </Dialog>
     </div>
   );
 };
 
-export default TextEditor;
+export default withWidth()(TextEditor);
